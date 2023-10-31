@@ -306,6 +306,12 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void digitalSignatureInvisible(){
+
+        String path = root.getAbsolutePath() + "/signed-invisible.pdf";
+
+    }
+
     /**
      * Helper method for drawing the result of renderFile() on screen
      */
