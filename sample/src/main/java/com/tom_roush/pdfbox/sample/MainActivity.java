@@ -12,10 +12,18 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,9 +47,13 @@ import com.tom_roush.pdfbox.pdmodel.interactive.form.PDRadioButton;
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTextField;
 import com.tom_roush.pdfbox.rendering.ImageType;
 import com.tom_roush.pdfbox.rendering.PDFRenderer;
+import com.tom_roush.pdfbox.sample.signature.CreateSignature;
+import com.tom_roush.pdfbox.sample.signature.CreateVisibleSignature;
+import com.tom_roush.pdfbox.sample.signature.TSAClient;
 import com.tom_roush.pdfbox.text.PDFTextStripper;
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
 
+import org.apache.commons.io.FileUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public class MainActivity extends Activity {
@@ -55,7 +67,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
     }
-    
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -134,7 +146,7 @@ public class MainActivity extends Activity {
             // Draw the red overlay image
             Bitmap alphaImage = BitmapFactory.decodeStream(alpha);
             PDImageXObject alphaXimage = LosslessFactory.createFromImage(document, alphaImage);
-            contentStream.drawImage(alphaXimage, 20, 20 );
+            contentStream.drawImage(alphaXimage, 20, 20);
 
             // Make sure that the content stream is closed:
             contentStream.close();
@@ -172,9 +184,7 @@ public class MainActivity extends Activity {
             tv.setText("Successfully rendered image to " + path);
             // Optional: display the render result on screen
             displayRenderedImage();
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             Log.e("PdfBox-Android-Sample", "Exception thrown while rendering file", e);
         }
     }
@@ -199,7 +209,7 @@ public class MainActivity extends Activity {
             ((PDCheckBox) checkbox).check();
 
             PDField radio = acroForm.getField("Radio");
-            ((PDRadioButton)radio).setValue("Second");
+            ((PDRadioButton) radio).setValue("Second");
 
             PDField listbox = acroForm.getField("ListBox");
             List<Integer> listValues = new ArrayList<>();
@@ -227,7 +237,7 @@ public class MainActivity extends Activity {
         PDDocument document = null;
         try {
             document = PDDocument.load(assetManager.open("Hello.pdf"));
-        } catch(IOException e) {
+        } catch (IOException e) {
             Log.e("PdfBox-Android-Sample", "Exception thrown while loading document to strip", e);
         }
 
@@ -236,16 +246,12 @@ public class MainActivity extends Activity {
             pdfStripper.setStartPage(0);
             pdfStripper.setEndPage(1);
             parsedText = "Parsed text: " + pdfStripper.getText(document);
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             Log.e("PdfBox-Android-Sample", "Exception thrown while stripping text", e);
         } finally {
             try {
                 if (document != null) document.close();
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 Log.e("PdfBox-Android-Sample", "Exception thrown while closing document", e);
             }
         }
@@ -255,8 +261,7 @@ public class MainActivity extends Activity {
     /**
      * Creates a simple pdf and encrypts it
      */
-    public void createEncryptedPdf(View v)
-    {
+    public void createEncryptedPdf(View v) {
         String path = root.getAbsolutePath() + "/crypt.pdf";
 
         int keyLength = 128; // 128 bit is the highest currently supported
@@ -280,8 +285,7 @@ public class MainActivity extends Activity {
 
         document.addPage(page);
 
-        try
-        {
+        try {
             PDPageContentStream contentStream = new PDPageContentStream(document, page);
 
             // Write Hello World in blue text
@@ -299,17 +303,9 @@ public class MainActivity extends Activity {
             document.close();
             tv.setText("Successfully wrote PDF to " + path);
 
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             Log.e("PdfBox-Android-Sample", "Exception thrown while creating PDF for encryption", e);
         }
-    }
-
-    private void digitalSignatureInvisible(){
-
-        String path = root.getAbsolutePath() + "/signed-invisible.pdf";
-
     }
 
     /**
@@ -327,5 +323,20 @@ public class MainActivity extends Activity {
                 });
             }
         }.start();
+    }
+
+    public void digitalSignatureInvisible(View view) throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException {
+        String path = root.getAbsolutePath() + "/signed-invisible.pdf";
+        String password = "123456";
+        KeyStore keystore = KeyStore.getInstance("PKCS12");
+        keystore.load(assetManager.open("keystore.p12"), password.toCharArray());
+        File temp = new File(root.getAbsolutePath(), "temp");
+        InputStream initialStream = assetManager.open("Hello.pdf");
+        FileUtils.copyInputStreamToFile(initialStream, temp);
+        CreateSignature signing = new CreateSignature(keystore, password.toCharArray());
+        File signedDocumentFile = new File(path);
+        signing.setExternalSigning(false);
+        signing.signDetached(temp, signedDocumentFile, null);
+        tv.setText("Successfully wrote PDF to " + signedDocumentFile);
     }
 }
