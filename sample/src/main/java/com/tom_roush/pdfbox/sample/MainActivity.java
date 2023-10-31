@@ -11,22 +11,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.Security;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
 import com.tom_roush.pdfbox.pdmodel.PDDocument;
 import com.tom_roush.pdfbox.pdmodel.PDDocumentCatalog;
 import com.tom_roush.pdfbox.pdmodel.PDPage;
@@ -48,13 +33,23 @@ import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTextField;
 import com.tom_roush.pdfbox.rendering.ImageType;
 import com.tom_roush.pdfbox.rendering.PDFRenderer;
 import com.tom_roush.pdfbox.sample.signature.CreateSignature;
-import com.tom_roush.pdfbox.sample.signature.CreateVisibleSignature;
-import com.tom_roush.pdfbox.sample.signature.TSAClient;
 import com.tom_roush.pdfbox.text.PDFTextStripper;
-import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
 
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Security;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends Activity {
     File root;
@@ -308,6 +303,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    public void digitalSignatureInvisible(View view) throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException {
+        String path = root.getAbsolutePath() + "/signed-invisible.pdf";
+        String password = "123456";
+        KeyStore keystore = KeyStore.getInstance("PKCS12");
+        keystore.load(assetManager.open("keystore.p12"), password.toCharArray());
+        File temp = new File(root.getAbsolutePath(), "temp");
+        InputStream initialStream = assetManager.open("Hello.pdf");
+        FileUtils.copyInputStreamToFile(initialStream, temp);
+        CreateSignature signing = new CreateSignature(keystore, password.toCharArray());
+        File signedDocumentFile = new File(path);
+        signing.setExternalSigning(false);
+        signing.signDetached(temp, signedDocumentFile, null);
+        tv.setText("Successfully wrote PDF to " + signedDocumentFile);
+    }
+
     /**
      * Helper method for drawing the result of renderFile() on screen
      */
@@ -323,20 +333,5 @@ public class MainActivity extends Activity {
                 });
             }
         }.start();
-    }
-
-    public void digitalSignatureInvisible(View view) throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException {
-        String path = root.getAbsolutePath() + "/signed-invisible.pdf";
-        String password = "123456";
-        KeyStore keystore = KeyStore.getInstance("PKCS12");
-        keystore.load(assetManager.open("keystore.p12"), password.toCharArray());
-        File temp = new File(root.getAbsolutePath(), "temp");
-        InputStream initialStream = assetManager.open("Hello.pdf");
-        FileUtils.copyInputStreamToFile(initialStream, temp);
-        CreateSignature signing = new CreateSignature(keystore, password.toCharArray());
-        File signedDocumentFile = new File(path);
-        signing.setExternalSigning(false);
-        signing.signDetached(temp, signedDocumentFile, null);
-        tv.setText("Successfully wrote PDF to " + signedDocumentFile);
     }
 }
